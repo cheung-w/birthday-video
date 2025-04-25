@@ -17,14 +17,15 @@
     }
     .video-container {
       position: relative;
+      touch-action: none;    /* let us intercept pointer events */
       display: inline-block;
+      cursor: crosshair;
     }
     video {
       height: 100vh;
       width: auto;
       max-width: 100%;
       display: block;
-      cursor: crosshair;
     }
     .heart {
       position: absolute;
@@ -53,9 +54,7 @@
 
   <script>
     const container = document.querySelector('.video-container');
-    const video = container.querySelector('video');
-
-    let isDrawing = false;
+    let drawing = false;
     let lastTime = 0;
     const drawInterval = 100; // ms between spawns while dragging
 
@@ -67,19 +66,16 @@
       const numHearts = 8;
       for (let i = 0; i < numHearts; i++) {
         const heart = document.createElement('span');
-        heart.classList.add('heart');
+        heart.className = 'heart';
         heart.textContent = '❤️';
-
         // random direction
         const dx = randomBetween(-80, 80) + 'px';
         const dy = randomBetween(-80, 80) + 'px';
         heart.style.setProperty('--dx', dx);
         heart.style.setProperty('--dy', dy);
-
-        // position at click/drag point
+        // place at click/drag point
         heart.style.left = x + 'px';
         heart.style.top = y + 'px';
-
         container.appendChild(heart);
         heart.addEventListener('animationend', () => heart.remove());
       }
@@ -95,28 +91,23 @@
       spawnHearts(x, y);
     }
 
-    // Single-click burst
-    video.addEventListener('click', e => {
-      const rect = container.getBoundingClientRect();
-      spawnHearts(e.clientX - rect.left, e.clientY - rect.top);
-    });
-
-    // Drag to draw bursts
-    video.addEventListener('mousedown', e => {
-      isDrawing = true;
+    container.addEventListener('pointerdown', e => {
+      drawing = true;
       lastTime = 0;
       handlePointer(e);
     });
-    window.addEventListener('mousemove', e => {
-      if (!isDrawing) return;
+
+    container.addEventListener('pointermove', e => {
+      if (!drawing) return;
       handlePointer(e);
     });
-    window.addEventListener('mouseup', () => {
-      isDrawing = false;
+
+    container.addEventListener('pointerup', () => {
+      drawing = false;
     });
-    // also cancel if pointer leaves window
-    window.addEventListener('mouseleave', () => {
-      isDrawing = false;
+
+    container.addEventListener('pointerleave', () => {
+      drawing = false;
     });
   </script>
 </body>
