@@ -17,11 +17,13 @@
     }
     .video-container {
       position: relative;
-      touch-action: none;    /* let us intercept pointer events */
+      touch-action: none;      /* prevent default scrolling/zoom on iOS */
       display: inline-block;
       cursor: crosshair;
     }
-    video {
+    /* Let clicks “fall through” the video into the container */
+    .video-container video {
+      pointer-events: none;
       height: 100vh;
       width: auto;
       max-width: 100%;
@@ -68,12 +70,10 @@
         const heart = document.createElement('span');
         heart.className = 'heart';
         heart.textContent = '❤️';
-        // random direction
         const dx = randomBetween(-80, 80) + 'px';
         const dy = randomBetween(-80, 80) + 'px';
         heart.style.setProperty('--dx', dx);
         heart.style.setProperty('--dy', dy);
-        // place at click/drag point
         heart.style.left = x + 'px';
         heart.style.top = y + 'px';
         container.appendChild(heart);
@@ -81,34 +81,58 @@
       }
     }
 
-    function handlePointer(e) {
+    function getCoords(evt) {
+      let cx, cy;
+      if (evt.touches && evt.touches.length) {
+        cx = evt.touches[0].clientX;
+        cy = evt.touches[0].clientY;
+      } else {
+        cx = evt.clientX;
+        cy = evt.clientY;
+      }
+      const rect = container.getBoundingClientRect();
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+
+    function handleDraw(evt) {
       const now = Date.now();
       if (now - lastTime < drawInterval) return;
       lastTime = now;
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const { x, y } = getCoords(evt);
       spawnHearts(x, y);
     }
 
-    container.addEventListener('pointerdown', e => {
+    // ----------- MOUSE (desktop) -----------
+    container.addEventListener('mousedown', e => {
       drawing = true;
       lastTime = 0;
-      handlePointer(e);
+      handleDraw(e);
     });
+    container.addEventListener('mousemove', e => drawing && handleDraw(e));
+    document.addEventListener('mouseup', () => drawing = false);
 
-    container.addEventListener('pointermove', e => {
-      if (!drawing) return;
-      handlePointer(e);
-    });
+    // ---------- TOUCH (mobile Safari) ----------
+    container.addEventListener('touchstart', e => {
+      e.preventDefault();
+      drawing = true;
+      lastTime = 0;
+      handleDraw(e);
+    }, { passive: false });
 
-    container.addEventListener('pointerup', () => {
+    container.addEventListener('touchmove', e => {
+      e.preventDefault();
+      drawing && handleDraw(e);
+    }, { passive: false });
+
+    container.addEventListener('touchend', e => {
+      e.preventDefault();
       drawing = false;
-    });
+    }, { passive: false });
 
-    container.addEventListener('pointerleave', () => {
+    container.addEventListener('touchcancel', e => {
+      e.preventDefault();
       drawing = false;
-    });
+    }, { passive: false });
   </script>
 </body>
 </html>
