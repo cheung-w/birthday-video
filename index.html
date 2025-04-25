@@ -24,6 +24,7 @@
       width: auto;
       max-width: 100%;
       display: block;
+      cursor: crosshair;
     }
     .heart {
       position: absolute;
@@ -54,36 +55,68 @@
     const container = document.querySelector('.video-container');
     const video = container.querySelector('video');
 
+    let isDrawing = false;
+    let lastTime = 0;
+    const drawInterval = 100; // ms between spawns while dragging
+
     function randomBetween(min, max) {
       return Math.random() * (max - min) + min;
     }
 
-    video.addEventListener('click', (e) => {
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const numHearts = 12;
-
+    function spawnHearts(x, y) {
+      const numHearts = 8;
       for (let i = 0; i < numHearts; i++) {
         const heart = document.createElement('span');
         heart.classList.add('heart');
         heart.textContent = '❤️';
 
-        // pick a random direction and distance
-        const dx = randomBetween(-100, 100) + 'px';
-        const dy = randomBetween(-100, 100) + 'px';
+        // random direction
+        const dx = randomBetween(-80, 80) + 'px';
+        const dy = randomBetween(-80, 80) + 'px';
         heart.style.setProperty('--dx', dx);
         heart.style.setProperty('--dy', dy);
 
-        // position at the click
+        // position at click/drag point
         heart.style.left = x + 'px';
         heart.style.top = y + 'px';
 
         container.appendChild(heart);
-
-        // remove after animation ends
         heart.addEventListener('animationend', () => heart.remove());
       }
+    }
+
+    function handlePointer(e) {
+      const now = Date.now();
+      if (now - lastTime < drawInterval) return;
+      lastTime = now;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      spawnHearts(x, y);
+    }
+
+    // Single-click burst
+    video.addEventListener('click', e => {
+      const rect = container.getBoundingClientRect();
+      spawnHearts(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    // Drag to draw bursts
+    video.addEventListener('mousedown', e => {
+      isDrawing = true;
+      lastTime = 0;
+      handlePointer(e);
+    });
+    window.addEventListener('mousemove', e => {
+      if (!isDrawing) return;
+      handlePointer(e);
+    });
+    window.addEventListener('mouseup', () => {
+      isDrawing = false;
+    });
+    // also cancel if pointer leaves window
+    window.addEventListener('mouseleave', () => {
+      isDrawing = false;
     });
   </script>
 </body>
