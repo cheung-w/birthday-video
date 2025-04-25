@@ -15,12 +15,12 @@
     }
     .video-container {
       position: relative;
-      touch-action: none;    /* catch all gestures */
+      touch-action: none;
       display: inline-block;
       cursor: crosshair;
     }
     .video-container video {
-      pointer-events: none;  /* let container receive taps */
+      pointer-events: none;
       height: 100vh;
       width: auto;
       max-width: 100%;
@@ -54,8 +54,8 @@
     const container = document.querySelector('.video-container');
     let drawing = false;
     let lastTime = 0;
-    const interval = 30;    // ms between draws
-    const spacing = 15;     // px between bursts on the line
+    const interval = 15;   // ms between draws (≈66 Hz)
+    const spacing = 8;     // px between bursts
     let lastPos = null;
 
     function randomBetween(min, max) {
@@ -68,8 +68,9 @@
         const heart = document.createElement('span');
         heart.className = 'heart';
         heart.textContent = '❤️';
-        const dx = randomBetween(-60, 60) + 'px';
-        const dy = randomBetween(-60, 60) + 'px';
+        // tighter flight range ±30px
+        const dx = randomBetween(-30, 30) + 'px';
+        const dy = randomBetween(-30, 30) + 'px';
         heart.style.setProperty('--dx', dx);
         heart.style.setProperty('--dy', dy);
         heart.style.left = x + 'px';
@@ -103,7 +104,6 @@
         const dy = pos.y - lastPos.y;
         const dist = Math.hypot(dx, dy);
         if (dist >= spacing) {
-          // spawn along the line every `spacing` px
           for (let d = spacing; d < dist; d += spacing) {
             const t = d / dist;
             const ix = lastPos.x + dx * t;
@@ -112,12 +112,10 @@
           }
         }
       }
-      // always spawn at actual pointer
       spawnHearts(pos.x, pos.y);
       lastPos = pos;
     }
 
-    // start drawing
     function startDraw(evt) {
       evt.preventDefault();
       drawing = true;
@@ -131,20 +129,19 @@
       lastPos = null;
     }
 
-    // MOUSE
+    // Mouse
     container.addEventListener('mousedown', startDraw);
     container.addEventListener('mousemove', e => drawing && handleDraw(e));
     document.addEventListener('mouseup', endDraw);
 
-    // TOUCH
-    ['touchstart','touchmove','touchend','touchcancel'].forEach(evtName => {
-      const opts = (evtName==='touchmove')?{passive:false}:{passive:false};
-      container.addEventListener(evtName, e => {
+    // Touch
+    ['touchstart','touchmove','touchend','touchcancel'].forEach(name => {
+      container.addEventListener(name, e => {
         e.preventDefault();
-        if (evtName==='touchstart') startDraw(e);
-        else if (evtName==='touchmove' && drawing) handleDraw(e);
+        if (name === 'touchstart') startDraw(e);
+        else if (drawing && name === 'touchmove') handleDraw(e);
         else endDraw(e);
-      }, opts);
+      }, { passive: false });
     });
   </script>
 </body>
