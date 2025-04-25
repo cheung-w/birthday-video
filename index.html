@@ -116,4 +116,94 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles
+        const p = particles[i];
+        p.life += dt;
+        if (p.life > p.ttl) {
+          particles.splice(i, 1);
+          continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 100 * dt; // gravity
+
+        const t = p.life / p.ttl;
+        drawHeart(p.x, p.y, p.size * (1 + t), 1 - t, p.color);
+      }
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // smoothing logic
+    let drawing = false;
+    let lastPos = null;
+    let lastTime = 0;
+    const interval = 20;  // ms
+    const spacing = 40;   // px
+
+    function getCoords(e) {
+      let cx, cy;
+      if (e.touches && e.touches[0]) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+      } else {
+        cx = e.clientX;
+        cy = e.clientY;
+      }
+      const r = container.getBoundingClientRect();
+      return { x: cx - r.left, y: cy - r.top };
+    }
+
+    function handleDraw(e) {
+      const now = Date.now();
+      if (now - lastTime < interval) return;
+      lastTime = now;
+      const pos = getCoords(e);
+      if (lastPos) {
+        const dx = pos.x - lastPos.x;
+        const dy = pos.y - lastPos.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > spacing) {
+          for (let d = spacing; d < dist; d += spacing) {
+            const t = d / dist;
+            spawn(
+              lastPos.x + dx * t,
+              lastPos.y + dy * t
+            );
+          }
+        }
+      }
+      spawn(pos.x, pos.y);
+      lastPos = pos;
+    }
+
+    function start(e) {
+      e.preventDefault();
+      drawing = true;
+      lastTime = 0;
+      lastPos = getCoords(e);
+      spawn(lastPos.x, lastPos.y);
+    }
+    function end(e) {
+      e.preventDefault();
+      drawing = false;
+      lastPos = null;
+    }
+
+    // mouse
+    container.addEventListener('mousedown', start);
+    container.addEventListener('mousemove', e => drawing && handleDraw(e));
+    document.addEventListener('mouseup', end);
+
+    // touch
+    ['touchstart','touchmove','touchend','touchcancel'].forEach(name => {
+      container.addEventListener(name, e => {
+        e.preventDefault();
+        if (name === 'touchstart') start(e);
+        else if (drawing && name === 'touchmove') handleDraw(e);
+        else end(e);
+      }, { passive: false });
+    });
+  </script>
+</body>
+</html>
