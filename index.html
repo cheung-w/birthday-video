@@ -6,22 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: black;
-      height: 100%;
-      overflow: hidden;
+      height: 100%; overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
     }
     .video-container {
       position: relative;
-      touch-action: none;       /* grab all touch gestures */
+      touch-action: none;
       display: inline-block;
       cursor: crosshair;
     }
-    /* video doesn’t intercept clicks */
     .video-container video {
       pointer-events: none;
       height: 100vh;
@@ -29,14 +26,19 @@
       max-width: 100%;
       display: block;
     }
-    /* canvas is on top but transparent to events */
-    .video-container canvas {
+    .heart {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      font-size: 1.5rem;
       pointer-events: none;
+      user-select: none;
+      animation: explode 1s ease-out forwards;
+    }
+    @keyframes explode {
+      to {
+        transform: translate(var(--dx), var(--dy)) scale(2);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -44,157 +46,101 @@
   <div class="video-container">
     <video autoplay muted playsinline loop>
       <source src="HAPPYBIRTHDAY.mp4" type="video/mp4">
+      Your browser does not support the video tag.
     </video>
-    <canvas id="heartCanvas"></canvas>
   </div>
 
   <script>
     const container = document.querySelector('.video-container');
-    const canvas = document.getElementById('heartCanvas');
-    const ctx = canvas.getContext('2d');
-    let particles = [];
-
-    // resize for high-DPR
-    function resize() {
-      const dpr = devicePixelRatio || 1;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.scale(dpr, dpr);
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // create a few particles at (x,y)
-    function spawn(x, y) {
-      const count = 4;              // fewer per spawn
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = (Math.random() * 0.4 + 0.1) * 80;  // px/sec
-        particles.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 20, // bias upward
-          life: 0,
-          ttl: 0.8 + Math.random() * 0.4,     // seconds
-          size: 8 + Math.random() * 4       // px
-        });
-      }
-    }
-
-    // heart‐drawing (a simple vector heart)
-    function drawHeart(x, y, size, alpha) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = 'red';
-      const s = size;
-      ctx.beginPath();
-      ctx.moveTo(0, -s / 2);
-      ctx.bezierCurveTo(-s, -s * 1.2, -s, s / 3, 0, s);
-      ctx.bezierCurveTo(s, s / 3, s, -s * 1.2, 0, -s / 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // animation loop
-    let lastFrame = performance.now();
-    function animate(now) {
-      const dt = (now - lastFrame) / 1000;
-      lastFrame = now;
-      // clear
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // update & draw
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.life += dt;
-        if (p.life > p.ttl) {
-          particles.splice(i, 1);
-          continue;
-        }
-        // physics
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.vy += 100 * dt; // gravity
-
-        // normalize life → [0,1]
-        const t = p.life / p.ttl;
-        drawHeart(p.x, p.y, p.size * (1 + t), 1 - t);
-      }
-      requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-
-    // smoothing logic (same as before but only spawns positions)
     let drawing = false;
-    let lastPos = null;
     let lastTime = 0;
-    const interval = 15;  // ms
-    const spacing = 8;    // px
+    const interval = 20;   // ms between draws (≈66 Hz)
+    const spacing = 10;     // px between bursts
+    let lastPos = null;
 
-    function getCoords(e) {
-      let cx, cy;
-      if (e.touches && e.touches[0]) {
-        cx = e.touches[0].clientX;
-        cy = e.touches[0].clientY;
-      } else {
-        cx = e.clientX;
-        cy = e.clientY;
-      }
-      const r = container.getBoundingClientRect();
-      return { x: cx - r.left, y: cy - r.top };
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
     }
 
-    function handleDraw(e) {
+    function spawnHearts(x, y) {
+      const count = 6;
+      for (let i = 0; i < count; i++) {
+        const heart = document.createElement('span');
+        heart.className = 'heart';
+        heart.textContent = '❤️';
+        // tighter flight range ±30px
+        const dx = randomBetween(-30, 30) + 'px';
+        const dy = randomBetween(-30, 30) + 'px';
+        heart.style.setProperty('--dx', dx);
+        heart.style.setProperty('--dy', dy);
+        heart.style.left = x + 'px';
+        heart.style.top = y + 'px';
+        container.appendChild(heart);
+        heart.addEventListener('animationend', () => heart.remove());
+      }
+    }
+
+    function getCoords(evt) {
+      let cx, cy;
+      if (evt.touches && evt.touches[0]) {
+        cx = evt.touches[0].clientX;
+        cy = evt.touches[0].clientY;
+      } else {
+        cx = evt.clientX;
+        cy = evt.clientY;
+      }
+      const rect = container.getBoundingClientRect();
+      return { x: cx - rect.left, y: cy - rect.top };
+    }
+
+    function handleDraw(evt) {
       const now = Date.now();
       if (now - lastTime < interval) return;
       lastTime = now;
-      const pos = getCoords(e);
+
+      const pos = getCoords(evt);
       if (lastPos) {
         const dx = pos.x - lastPos.x;
         const dy = pos.y - lastPos.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > spacing) {
+        if (dist >= spacing) {
           for (let d = spacing; d < dist; d += spacing) {
             const t = d / dist;
-            spawn(
-              lastPos.x + dx * t,
-              lastPos.y + dy * t
-            );
+            const ix = lastPos.x + dx * t;
+            const iy = lastPos.y + dy * t;
+            spawnHearts(ix, iy);
           }
         }
       }
-      spawn(pos.x, pos.y);
+      spawnHearts(pos.x, pos.y);
       lastPos = pos;
     }
 
-    function start(e) {
-      e.preventDefault();
+    function startDraw(evt) {
+      evt.preventDefault();
       drawing = true;
       lastTime = 0;
-      lastPos = getCoords(e);
-      spawn(lastPos.x, lastPos.y);
+      lastPos = getCoords(evt);
+      spawnHearts(lastPos.x, lastPos.y);
     }
-    function end(e) {
-      e.preventDefault();
+    function endDraw(evt) {
+      evt.preventDefault();
       drawing = false;
       lastPos = null;
     }
 
-    // mouse
-    container.addEventListener('mousedown', start);
+    // Mouse
+    container.addEventListener('mousedown', startDraw);
     container.addEventListener('mousemove', e => drawing && handleDraw(e));
-    document.addEventListener('mouseup', end);
+    document.addEventListener('mouseup', endDraw);
 
-    // touch
+    // Touch
     ['touchstart','touchmove','touchend','touchcancel'].forEach(name => {
       container.addEventListener(name, e => {
         e.preventDefault();
-        if (name === 'touchstart') start(e);
+        if (name === 'touchstart') startDraw(e);
         else if (drawing && name === 'touchmove') handleDraw(e);
-        else end(e);
+        else endDraw(e);
       }, { passive: false });
     });
   </script>
