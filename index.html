@@ -15,18 +15,76 @@
       justify-content: center;
       align-items: center;
     }
+    .video-container {
+      position: relative;
+      display: inline-block;
+    }
     video {
       height: 100vh;
       width: auto;
       max-width: 100%;
+      display: block;
+    }
+    .heart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      font-size: 1.5rem;
+      pointer-events: none;
+      user-select: none;
+      animation: explode 1s ease-out forwards;
+    }
+    @keyframes explode {
+      to {
+        transform: translate(var(--dx), var(--dy)) scale(2);
+        opacity: 0;
+      }
     }
   </style>
 </head>
 <body>
-  <video autoplay muted playsinline loop>
-    <source src="HAPPYBIRTHDAY.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
+  <div class="video-container">
+    <video autoplay muted playsinline loop>
+      <source src="HAPPYBIRTHDAY.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+  <script>
+    const container = document.querySelector('.video-container');
+    const video = container.querySelector('video');
+
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    video.addEventListener('click', (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const numHearts = 12;
+
+      for (let i = 0; i < numHearts; i++) {
+        const heart = document.createElement('span');
+        heart.classList.add('heart');
+        heart.textContent = '❤️';
+
+        // pick a random direction and distance
+        const dx = randomBetween(-100, 100) + 'px';
+        const dy = randomBetween(-100, 100) + 'px';
+        heart.style.setProperty('--dx', dx);
+        heart.style.setProperty('--dy', dy);
+
+        // position at the click
+        heart.style.left = x + 'px';
+        heart.style.top = y + 'px';
+
+        container.appendChild(heart);
+
+        // remove after animation ends
+        heart.addEventListener('animationend', () => heart.remove());
+      }
+    });
+  </script>
 </body>
 </html>
-
