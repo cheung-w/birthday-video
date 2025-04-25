@@ -6,24 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: black;
-      height: 100%;
-      overflow: hidden;
+      height: 100%; overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
     }
     .video-container {
       position: relative;
-      touch-action: none;      /* prevent default scrolling/zoom on iOS */
+      touch-action: none;    /* catch all gestures */
       display: inline-block;
       cursor: crosshair;
     }
-    /* Let clicks “fall through” the video into the container */
     .video-container video {
-      pointer-events: none;
+      pointer-events: none;  /* let container receive taps */
       height: 100vh;
       width: auto;
       max-width: 100%;
@@ -31,8 +28,7 @@
     }
     .heart {
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       font-size: 1.5rem;
       pointer-events: none;
       user-select: none;
@@ -58,20 +54,22 @@
     const container = document.querySelector('.video-container');
     let drawing = false;
     let lastTime = 0;
-    const drawInterval = 100; // ms between spawns while dragging
+    const interval = 30;    // ms between draws
+    const spacing = 15;     // px between bursts on the line
+    let lastPos = null;
 
     function randomBetween(min, max) {
       return Math.random() * (max - min) + min;
     }
 
     function spawnHearts(x, y) {
-      const numHearts = 8;
-      for (let i = 0; i < numHearts; i++) {
+      const count = 6;
+      for (let i = 0; i < count; i++) {
         const heart = document.createElement('span');
         heart.className = 'heart';
         heart.textContent = '❤️';
-        const dx = randomBetween(-80, 80) + 'px';
-        const dy = randomBetween(-80, 80) + 'px';
+        const dx = randomBetween(-60, 60) + 'px';
+        const dy = randomBetween(-60, 60) + 'px';
         heart.style.setProperty('--dx', dx);
         heart.style.setProperty('--dy', dy);
         heart.style.left = x + 'px';
@@ -83,7 +81,7 @@
 
     function getCoords(evt) {
       let cx, cy;
-      if (evt.touches && evt.touches.length) {
+      if (evt.touches && evt.touches[0]) {
         cx = evt.touches[0].clientX;
         cy = evt.touches[0].clientY;
       } else {
@@ -96,43 +94,58 @@
 
     function handleDraw(evt) {
       const now = Date.now();
-      if (now - lastTime < drawInterval) return;
+      if (now - lastTime < interval) return;
       lastTime = now;
-      const { x, y } = getCoords(evt);
-      spawnHearts(x, y);
+
+      const pos = getCoords(evt);
+      if (lastPos) {
+        const dx = pos.x - lastPos.x;
+        const dy = pos.y - lastPos.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist >= spacing) {
+          // spawn along the line every `spacing` px
+          for (let d = spacing; d < dist; d += spacing) {
+            const t = d / dist;
+            const ix = lastPos.x + dx * t;
+            const iy = lastPos.y + dy * t;
+            spawnHearts(ix, iy);
+          }
+        }
+      }
+      // always spawn at actual pointer
+      spawnHearts(pos.x, pos.y);
+      lastPos = pos;
     }
 
-    // ----------- MOUSE (desktop) -----------
-    container.addEventListener('mousedown', e => {
+    // start drawing
+    function startDraw(evt) {
+      evt.preventDefault();
       drawing = true;
       lastTime = 0;
-      handleDraw(e);
-    });
+      lastPos = getCoords(evt);
+      spawnHearts(lastPos.x, lastPos.y);
+    }
+    function endDraw(evt) {
+      evt.preventDefault();
+      drawing = false;
+      lastPos = null;
+    }
+
+    // MOUSE
+    container.addEventListener('mousedown', startDraw);
     container.addEventListener('mousemove', e => drawing && handleDraw(e));
-    document.addEventListener('mouseup', () => drawing = false);
+    document.addEventListener('mouseup', endDraw);
 
-    // ---------- TOUCH (mobile Safari) ----------
-    container.addEventListener('touchstart', e => {
-      e.preventDefault();
-      drawing = true;
-      lastTime = 0;
-      handleDraw(e);
-    }, { passive: false });
-
-    container.addEventListener('touchmove', e => {
-      e.preventDefault();
-      drawing && handleDraw(e);
-    }, { passive: false });
-
-    container.addEventListener('touchend', e => {
-      e.preventDefault();
-      drawing = false;
-    }, { passive: false });
-
-    container.addEventListener('touchcancel', e => {
-      e.preventDefault();
-      drawing = false;
-    }, { passive: false });
+    // TOUCH
+    ['touchstart','touchmove','touchend','touchcancel'].forEach(evtName => {
+      const opts = (evtName==='touchmove')?{passive:false}:{passive:false};
+      container.addEventListener(evtName, e => {
+        e.preventDefault();
+        if (evtName==='touchstart') startDraw(e);
+        else if (evtName==='touchmove' && drawing) handleDraw(e);
+        else endDraw(e);
+      }, opts);
+    });
   </script>
 </body>
 </html>
